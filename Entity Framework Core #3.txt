@@ -1,0 +1,300 @@
+OnConfiguring ile Konfigürasyon Ayarlarını Gerçekleştirmek
+
+- EF CORE tool'unu yapılandırmak için kullandığımız bir metottur.
+- Context nesnesinde override edilerek kullanılmaktadır.
+
+using Microsoft.EntityFrameworkCore;
+
+public class ETicaretContext : DbContext //ETicaretContext diye veritabanına karşılık gelen bir sınıfım var.
+{
+    public DbSet<Urun> Urunler { get; set; } //Bu veritabanı içerisinde de Urun entity'si modelinde bir tablo var adı da Urunler.
+	
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        //Provider
+        //ConnectionString
+        //Lazy Loading vb.
+
+        //context nesnesinin hangi veritabanına uygun bir biçimde bir çalışma sergileyeceği belli oldu.
+        optionsBuilder.UseSqlServer("Server=PC\\SQLEXPRESS;Database=ETicaretDB;User ID=sa;Password=1"); 
+    }
+}
+
+public class Urun //Entity isimleri tekil.
+{
+
+}
+
+---------------
+
+Basit Düzeyde Entity Tanımlama Kuralları
+
+- Yukarıdaki koda uygun bir migration oluşturmaya çalıştığımızda "The entity type 'Urun' requires a primary key to be defined..." hatası alırız.
+- EF Core, her tablonun default olarak bir primary key kolonu olması gerektiğini kabul eder. Haliyle bu kolonu temsil eden bir property tanımlamadığımız taktirde
+hata verecektir.
+
+using Microsoft.EntityFrameworkCore;
+
+Console.WriteLine("Hello");
+
+public class ETicaretContext : DbContext //ETicaretContext diye veritabanına karşılık gelen bir sınıfım var.
+{
+    public DbSet<Urun> Urunler { get; set; } //Bu veritabanı içerisinde de Urun entity'si modelinde bir tablo var adı da Urunler.
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        //Provider
+        //ConnectionString
+        //Lazy Loading vb.
+
+        //context nesnesinin hangi veritabanına uygun bir biçimde bir çalışma sergileyeceği belli oldu.
+        optionsBuilder.UseSqlServer("Server=PC\\SQLEXPRESS;Database=ETicaretDB;User ID=sa;Password=1"); 
+    }
+}
+
+public class Urun //Entity isimleri tekil.
+{
+    //public int Id { get; set; }
+    //public int ID { get; set; }
+    //public int UrunId { get; set; }
+    public int UrunID { get; set; }
+    //Yukarıdakilerden birini tanımladığımız zaman EF Core tanıyıp primary key olarak belirleyecektir.
+    //İleride bu şekilde tanımlanan property'ler dışındaki bir property'i de primary key atamayı göreceğiz.
+}
+
+- Bu şekilde add-migration mig_1 yazıp enter'a bastığımızda hata ortadan kalkacaktır.
+
+----------------
+
+Veri Nasıl Eklenir?
+
+using Microsoft.EntityFrameworkCore;
+
+ETicaretContext context = new(); //veri ekleyebilmek için bir context nesnesine ihtiyacımız var.
+
+//Verilere Entity'lerin instance'ları karşılık gelir.
+Urun urun = new() //Artı olarak, Urun adlı entity sınıfından bir nesne yani veri oluşturmamız da lazım.
+{
+    UrunAdi = "A Ürünü",
+    Fiyat = 1000
+};
+
+//context.AddAsync Fonksiyonu kullanabiliriz,
+//await context.AddAsync(urun); //bir urun ekleme talimatını vermiş olduk.
+//sadece Add'i de kullanabiliriz.
+
+//context.DbSet.AddAsync Fonksiyonu da kullanabiliriz. Tek farkı tip güvenliği sağlamasıdır.
+await context.Urunler.AddAsync(urun);
+//context nesnesi üzerinden ilgili nesneyi AddAsync ile ekliyoruz.
+//burada bir insert işlemi yapmış olduk.
+
+//SaveChanges ya SaveChangesAsync; insert, update ve delete sorgularını oluşturup bir transaction eşliğinde veritabanına gönderip execute eden fonksiyondur.
+//Eğer ki oluşturulan sorgulardan herhangi biri başarısız olursa tüm işlemleri geri alır(rollback).
+await context.SaveChangesAsync();
+public class ETicaretContext : DbContext //ETicaretContext diye veritabanına karşılık gelen bir sınıfım var.
+{
+    public DbSet<Urun> Urunler { get; set; } //Bu veritabanı içerisinde de Urun entity'si modelinde bir tablo var adı da Urunler.
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {        
+        optionsBuilder.UseSqlServer(@"Server=PC\SQLEXPRESS;Database=ETicaretDB;User ID=sa;Password=1;TrustServerCertificate=True;Trusted_Connection=true");
+    }
+}
+
+public class Urun //Entity isimleri tekil.
+{    
+    public int Id { get; set; }
+    public string UrunAdi { get; set; }
+    public float Fiyat { get; set; }
+}
+
+- Kodu her çalıştırdığımızda, 2 kere çalıştırırsak örneğin;
+Id  UrunAdi Fiyat
+1	A Ürünü	1000
+2	A Ürünü	1000
+
+olarak SQL'e eklenecektir.
+
+------------------
+
+EF Core Açısından Bir Veriye Göre Hangi Davranışın Gerektiği Nasıl Anlaşılıyor?
+
+using Microsoft.EntityFrameworkCore;
+
+ETicaretContext context= new ETicaretContext();
+Urun urun = new Urun()
+{
+    UrunAdi = "B Ürünü",
+    Fiyat = 2000
+};
+Console.WriteLine(context.Entry(urun).State); //Detached yazacaktır.
+
+//await context.AddAsync(urun);
+//await context.SaveChangesAsync();
+public class ETicaretContext : DbContext //ETicaretContext diye veritabanına karşılık gelen bir sınıfım var.
+{...}
+
+public class Urun //Entity isimleri tekil.
+{...}
+
+- Fakat AddAsync'deki yorumu kaldırırsak;
+
+using Microsoft.EntityFrameworkCore;
+
+ETicaretContext context= new ETicaretContext();
+Urun urun = new Urun()
+{
+    UrunAdi = "B Ürünü",
+    Fiyat = 2000
+};
+
+Console.WriteLine(context.Entry(urun).State); //Detached yazacaktır. Çünkü bir işlem yapılmadı.
+
+await context.AddAsync(urun);
+
+Console.WriteLine(context.Entry(urun).State); //Added yazacaktır. Çünkü artık veritabanına eklendi.
+
+//await context.SaveChangesAsync();
+
+public class ETicaretContext : DbContext //ETicaretContext diye veritabanına karşılık gelen bir sınıfım var.
+{...}
+
+public class Urun //Entity isimleri tekil.
+{...}
+
+Çıktı:
+Detached
+Added
+
+olacaktır.
+
+- SaveChanges'ı da yorumdan çıkarırsak;
+
+using Microsoft.EntityFrameworkCore;
+
+ETicaretContext context= new ETicaretContext();
+Urun urun = new Urun()
+{
+    UrunAdi = "B Ürünü",
+    Fiyat = 2000
+};
+
+Console.WriteLine(context.Entry(urun).State); //Detached yazacaktır. Çünkü bir işlem yapılmadı.
+
+await context.AddAsync(urun);
+
+Console.WriteLine(context.Entry(urun).State);
+
+await context.SaveChangesAsync();
+
+Console.WriteLine(context.Entry(urun).State);
+
+public class ETicaretContext : DbContext //ETicaretContext diye veritabanına karşılık gelen bir sınıfım var.
+{...}
+
+public class Urun //Entity isimleri tekil.
+{...}
+
+Çıktı:
+Detached
+Added
+Unchanged
+
+- SaveChanges'ı çağırıp veritabanına gittikten sonra üzerinde herhangi bir değişiklik yapılmadığı için Unchanged yazdı.
+- Silme işlemi yapsaydık Deleted, güncelleme yapsaydık Modified yazacaktı.
+
+------------------
+
+Birden Fazla Veri Eklerken Nelere Dikkat Edilmelidir?
+
+- SaveChanges'ı verimli kullanmalıyız. SaveChanges fonksiyonu her tetiklendiğinde bir Transaction oluşturacağından dolayı EF Core ile yaılan her bir işleme özel olarak
+kullanmaktan kaçınmalıyız. Çünkü her işleme özel transaction veritabanı açısından ekstra maliyet demektir. O yüzden mümkün mertebe tüm işlemlerimizi tek bir transaction eşliğinde
+veritabanına gönderebilmek için SaveChanges'ı aşağıdaki gibi tek seferde kullanmak hem maliyet hem de yönetilebilirlik açısından faydalı olacaktır.
+
+using Microsoft.EntityFrameworkCore;
+
+ETicaretContext context = new ETicaretContext();
+Urun urun1 = new Urun()
+{
+    UrunAdi = "C Ürünü",
+    Fiyat = 2000
+};
+
+Urun urun2 = new Urun()
+{
+    UrunAdi = "D Ürünü",
+    Fiyat = 2000
+};
+
+Urun urun3 = new Urun()
+{
+    UrunAdi = "E Ürünü",
+    Fiyat = 2000
+};
+
+await context.AddAsync(urun1);
+await context.AddAsync(urun2);
+await context.AddAsync(urun3);
+
+await context.SaveChangesAsync(); //böylece tek bir transaction içerisinde yukarıdaki işlemler gerçekleştirilip maliyetten düşülecektir.
+
+public class ETicaretContext : DbContext 
+{...}
+
+public class Urun 
+{...}
+
+- AddRange fonksiyonunu da kullanabiliriz.
+
+using Microsoft.EntityFrameworkCore;
+
+ETicaretContext context = new ETicaretContext();
+Urun urun1 = new Urun()
+{
+    UrunAdi = "C Ürünü",
+    Fiyat = 2000
+};
+
+Urun urun2 = new Urun()
+{
+    UrunAdi = "D Ürünü",
+    Fiyat = 2000
+};
+
+Urun urun3 = new Urun()
+{
+    UrunAdi = "E Ürünü",
+    Fiyat = 2000
+};
+
+await context.Urunler.AddRangeAsync(urun1, urun2, urun3);
+await context.SaveChangesAsync();
+
+public class ETicaretContext : DbContext 
+{...}
+
+public class Urun 
+{...}
+
+----------------------
+
+Eklenen Verinin Generate Edilen Id'sini Elde Etme
+
+using Microsoft.EntityFrameworkCore;
+
+ETicaretContext context = new ETicaretContext();
+Urun urun = new Urun()
+{
+    UrunAdi = "O Ürünü",
+    Fiyat = 2000
+};
+
+await context.AddAsync(urun);
+await context.SaveChangesAsync();
+Console.WriteLine(urun.Id);
+
+public class ETicaretContext : DbContext 
+{...}
+
+public class Urun 
+{...}
+
+- Ekrana o anki eklenen ürünün Id'sini getirecektir.

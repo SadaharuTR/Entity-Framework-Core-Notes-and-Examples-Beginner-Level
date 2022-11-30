@@ -1,0 +1,344 @@
+Entity Framework Core
+
+ORM Nedir?
+
+- Yazılım uygulamalarında veriler fiziksel olarak veritabanında tutulmaktadır. (SQL Server, Postgre, Oracle..)
+
+- Yazılım ile veritabanı arasında sürekli bir bağlantı üzerinden iletişim sağlanmaktadır.
+Ki yazılım dış dünyadan elde ettiği verileri veritabanına işleyebilsin ya da veritabanındaki verileri istediği
+zaman elde edebilsin.
+
+- İşte böyle bir durumda yazılım ile veritabanı arasında biraz önce bahsedildiği üzere bir bağlantı kurularak
+verisel trafik gerçekleştirilmektedir.
+
+- Yazılım, bu bağlantı üzerinden veritabanına anlayacağı dilden sorgular gönderir ve veritabanı da bu sorgulara
+istinaden gerekli verisel işlemleri gerçekleştirir.
+
+- Bu sorgular genellikle SQL dilindedir.
+
+Örnek:
+
+using System.Data.Client;
+
+await using SqlConnection connection = new("Server=localhost, 1433; Database = Northwind; User Id=sa; Password = "1234yapmayın";
+await connection.OpenAsync();
+
+SqlCommand command = new("Select * from Employees", connection);
+SqlDataReader dr = await command.ExecuteReaderAsync();
+
+while(await dr.ReadAsync())
+{
+	CW($"{dr["FirstName"]} {dr["LastName"]}");
+}
+
+await connection.CloseAsync();
+
+- ORM süreci de burada başlamaktadır.
+
+- Kodun içerisinde SQL sorguları ve SQL ile ilgili farklı cümleciklerin olması genel anlamda kodun kirlenmesine
+sebep olmaktadır.
+
+- Bunun dışında geliştiricinin SQL hakkında olan bilgisinin endişe verici olmaması gerekmektedir. Ayrıca veritabanına 
+gönderilen SQL neticesinde gelen datalar manuel parse edilmek zorunda bu da kodun SQL'e olan bağlılığını arttırdığı gibi
+yönetilebilirliği de kısıtlamaktadır.
+
+- Yani uzun lafın kısası kodun içerisinde SQL cümleleri yazmanın ve veritabanından gelen sonuçların manuel 
+bir şekilde parse edilmesinin büyük projelerde sorunlar çıkacağı aşikardır.
+
+- Bu durum veritabanı bağımlılığı yaratır. SQL Server, Oracle vs. hangisi kullanılıyorsa ona bağlı kalınması
+ileride değişimi zorlaştırır.
+
+- Kompleks SQL sorguların manuel bir şekilde oluşturulması gerekir. Geliştirici açısından SQL sorumluluğu beklenir.
+
+- Veritabanı sorgulama neticesinde gelen datalar manuel olarak dönüştürülür. Sorgu sürecinde tablo, kolon vs.
+gibi bağımlılıklar olduğu gibi gelen datalarda da aynı bağımlılıklar sürecektir. Gün geldiğinde veritabanını
+değiştirmemiz gerekebilir. Bu durumda tüm SQL kodlarını yeni veritabanına göre Refactoring etmemiz gerekmektedir.
+
+- Veritabanında olan değişikliklere uygun bir şekilde kodun da tekrar review edilmesi gereklidir.
+Bir kolon adı değiştiğinde ya da bir kolonun herhangi bir kuralı (constraint, validation vs.) değiştiğinde bu
+durumdan kodun haberdar olması için bilinçli bir review gerekmektedir.
+
+- Kodu aşırı derecede veritabanı seviyesine indirger. Bu durum tüm gelişmelerin veritabanı ile uyumlu bir
+şekilde seyretmesini zorunlu kılar.
+
+- Geliştirilen yazılımın sürecinde tüm veritabanı işlemleri, o anki kullanılan programlama dili ve OOP'nin
+hizmetlerinden istifade etmeksizin icra edilir.
+
+ORM Nedir?
+
+- Yazılım ve veritabanı arasındaki bağlantı üzerinden sorgular eşliğinde veri transferini OOP nimetlerinden
+istifade ederek sağlayabileceği ve böylece kodun da, geliştiricinin de SQL'E bağlılığı olmaksızın hızlı ve kolayca 
+operasyonları gerçekleştirebileceği bir yaklaşım ortaya konmuştur. Bu yaklaşımın adı ORM'dir.
+
+ORM: Object Relational Mapping - Nesne İlişkisel Eşleme
+
+- Geliştirilen yazılım içerisinde OOP yapısına uygun olmayan, katı ve kompleks veritabanı sorguları yerine veritabanı
+objelerinin, bir OOP nesnesi gibi düşünülerek yazılım tarafından kullanabilmesine olanak sağlayan bir yaklaşımdır.
+
+- Bu yaklaşıma göre veritabanı, tablolar ve veriler yazılım tarafında birer nesneye karşılık gelmektedirler.
+Böylece tüm veritabanı süreçlerini OOP kavramlayıyla rahatlıkla yönetebilie ve kodu SQL'den arındırabiliriz.
+
+Örnek:
+
+[SQL, MySQL, Oracle, PostgreSQL] -> Context Class {...} -- Tablolara karşılık gelen class'lar----
+
+--veritabanı class'larında referans edilirler.---> Employees Table -> Employees Class {...}
+
+Böylece o veritabanının tablosu olduğu anlaşılmaktadır.
+
+Sorgu süreci: 
+
+Context c = new Context();
+//Bu veritabanında,
+
+var employeeDatas = c.Employees.ToList();
+//Employees tablosunu sorgula ve tüm verileri getir demiş olduk.
+
+- Nihai olarak, yazılım tarafında ORM ile elde edilen tüm bu veriler(employeeDatas) esasında tabloya karşılık 
+oluşturulmuş olan bu class'ın(Employees) instance'larını(object) olarak elde edilmiş olacaklar.
+
+Örnek: 
+
+ORM ile;
+
+NorthwindDbContext context = new();
+var employeeDatas = await context.Employees.ToListAsync(); 
+
+ORM'siz hali;
+
+using System.Data.Client;
+
+await using SqlConnection connection = New("Server=localhost, 1433; Database = Northwind; User Id=sa; Password = "1234yapmayın";
+await connection.OpenAsync();
+
+SqlCommand command = new("Select * from Employees", connection);
+SqlDataReader dr = await command.ExecuteReaderAsync();
+
+while(await dr.ReadAsync())
+{
+	CW($"{dr["FirstName"]} {dr["LastName"]}");
+}
+
+await connection.CloseAsync();
+
+------
+
+ORM Avantajları
+
+- Veritabanı bağımsızlığı sağlar.
+- Kullanılan veritabanına göre uygun sorgu oluşturur.
+- OOP nimetlerinden faydalanarak SQL mantığı işlenmesini sağlar.
+- Geliştiricinin kullanılan veritabanına dair SQL niteliklerinin olması beklenmez.
+- Sorgular otomatik generate edileceğinden dolayı kodu SQL bağımlılığından soyutlar.
+
+-----------------------------
+
+Entity Framework Core Nedir?
+
+- ORM yaklaşımını benimsemiş bir araçtır.
+
+- Kod içerisinde OOP nimetlerinden istifade ederek SQL sorguları oluşturmamızı sağlamaktadır.
+
+- Açık kaynaktır, esnektir, geliştirilebilir.
+
+- Kod içerisinde ihtiyaca binaen geliştirilmiş olan tekrarlı SQL sorgucuklarından bizi kurtarmaktadır.
+
+- Code First ve Database First yaklaşımları eşliğinde veritabanı ile yazılım arasındaki koordinasyonu sağlamaktadır.
+
+- Kod üzerinden; veritabanı ve tablo, Constraint, Sequence, İlişkili sorgular, View, Stored Procedure, Function, Temporal Table gibi
+veritabanı nesneleri oluşturmamızı ve kullanmamızı sağlamaktadır.
+
+- Querry için LINQ sorgularını desteklemektedir.
+
+ORM Olarak Neden EF Core Seçilmelidir?
+
+- EF Core, her ne kadar hızlı ve performanslı bir yapıya sahip olsa da piyasadaki en hızlı ORM aracı değildir.
+
+- Misal olarak; minimal özelliklere sahip olan Dapper, Raw(ham) sorgular kullandığından dolayı kelimenin tam anlamıyla EF Core'dan çok daha hızlıdır.
+
+- Lakin her bir güncellemesinde performansının arttığı gözlemlenen EF Core'un ise birçok özelliği mevcuttur. 
+
+- OOP nimetlerinden istifade etmemizi sağlayan EF Core ile class oluşturma, nesne değişikliklerini izleme(Change Tracker), mapping vs gibi türlü işlemi gerçekleştirebiliriz.
+
+- Seviyorum kardeşim.
+
+EF Core Nasıl Yüklenir?
+
+- İleride Entity Framework Core ile migration yapılanmalarına vs. değiniyor olacağız. İşte bu yapılanmaları sağlayabilmek ve işlevleri yürütebilmek için belirli araçları
+yüklememiz gerekmektedir.
+
+Yüklenecek araçlar: .NET Core command-line interface (CLI) tools
+					Package Manager Console (PMC) tools
+					
+olmak üzere iki farklı kümede değerlendirilebilir.
+
+.NET Core command-line interface (CLI) tools: dotnet-ef ile başlayan CLI komutlarını ilgili PC'de aktif olarak kullanabilmemizi sağlayan tool'dur.
+
+Install -> dotnet tool install --global dotnet-ef
+Update  -> dotnet tool update --global dotnet-ef
+Check -> dotnet ef
+
+Tool'u yükledikten sonra belirli bir projede kullanabilmek için ilgili projede şu paketin de yüklü olması gerekmektedir.
+-Microsoft.EntityFramworkCore.Design
+
+Alternatif olarak,
+
+Package Manager Console (PMC) tools
+
+- Visual Studio, Package Manager Console üzerinden talimatlar vermemizi sağlayan bir tool'dur.
+Tools -> Nuget Package Manager -> Package Manager Console
+
+Haliyle Package Manager Console üzerinden talimatlar verebilmek için şu paketin ilgili projede yüklü olması gerekmektedir.
+-Microsoft.EntityFramworkCore.Tools
+
+----------------
+
+EF Core, Yaklaşımlar
+
+- EF Core veritabanlarıyla iki farklı yaklaşımı baz alarak çalışmalar sergilemektedir.
+
+Bu yaklaşımlar;
+-Database First
+-Code First
+
+- Yaklaşım, bir konuyu, olguyu , yapıyı, inşayı, sorunu ve çözümü ele alış bir başka deyişle ona bütünsel olarak bakış biçimidir.
+Her yaklaşım bir davranışa özeldir, (öznel)subjektiftir.
+
+- EF Core, veritabanı çalışmaları için, veritabanının önceden olup olmaması durumlarına göre farklı yaklaşımlar sunmaktadır. İşte bu durumlara göre farklı
+yaklaşımlar eşliğinde çözüm getirilmesi öznel olmanın bir göstergesidir.
+
+Yaklaşımların Temel Amacı Nedir?
+
+- Önceki derslerde ORM yapılanmasını ele alırken, veritabanını OOP nimetlerinden istifade ederek kod tarafında modellememizi sağlayan ve nesneler üzerinden
+sorgulama süreçlerini yöneterek SQL'den bağımsız bir şekilde çalışmalar ortaya koyan pattern olduğundan bahsetmiştik.
+
+- İşte bu bilgiye istinaden, bir ORM aracı olan EF Core ile yapılacak olan çalışmalarda da hedef veritabanının kod kısmına aktarılması gerekecektir.
+Lakin hedef veritabanı, bazen önceden oluşturulmuş bir veritabanı olabileceği gibi bazen de daha yeni oluşturulacak bir veritabanı da olabilmektedir.
+
+- Yani olan bir veritabanını kod kısmında modellemek gayet gözle görülebilir bir durumken, hiç oluşturulmamış(yeni oluşturulacak olan) bir veritabanını da kod kısmında
+modellemek gerekebilmektedir.
+
+- İşte bu yaklaşımlar, veritabanının önceden var olup olmaması durumlarına göre kod kısmında modellenme süreçlerinin hangi davranışla gerçekleştirileceğini
+beirleyecek olan tekniği bizlere sunmaktadırlar.
+
+- Misal olarak uzun zamandır devam eden ve veritabanı mevcut bir projeye katıldığınızı varsayalım.
+
+Bu durumda  projedeki veritabanının var olmasından dolayı büyük ihtimalle Database First yaklaşımını tercih etmemiz gerekecektir.
+
+- Lakin veritabanı daha inşa edilmemiş bir proje ise böyle durumlarda Database First veya Code First yaklaşımlarından birini tercih edecebiliriz.
+
+
+Database First Yaklaşımı
+
+- EF Core ile çalışma yapılacak olan veritabanı önceden oluşturulmuş ve içerisine tablolar yerleştirilerek belirli çalışmalar yapılmış ise bu veritabanını kod
+kısmında modellemek için en doğru yaklaşım Database First yaklaşımıdır.
+
+- Database First, var olan veritabanını tersine mühendislik ile analiz edip otomatik olarak kod kısmında modelleyen bir yaklaşımdır.
+Yani şöyle ki, hedef veritabanının belirli talimatlar aracılığıyla otomatik olarak kod kısmında OOP nimetleri eşliğinde modellenmesidir.
+
+Önceden oluşturulmuş veritabanı --SQL--> Tablolar (Personeller, Müşteriler, Satışlar, Ürünler)
+
+Bu veritabanını kod tarafında modelleyebilmek için ileride Scaffold adını vereceğimiz bir talimatı kullanacağız.
+
+--Scaffold Talimatı--> Kod Ortamı 
+
+//veritabanına karşılık gelen sınıf
+class DbContext
+{
+//aşağıdaki 4 sınıfın veritabanı sınıfında nesnel olarak tabloları olduğunu ifade eden referansları;
+public DbSet <Personeller> Personeller {get; set;}
+public DbSet <Satışlar> Satışlar {get; set;}
+public DbSet <Müşteriler> Müşteriler {get; set;}
+public DbSet <Ürünler> Ürünler {get; set;}
+//belirlemek gerekir.
+}
+
+//tablolara karşılık gelen sınıflar
+//her bir kolon bir property'e karşılık gelir.
+class Personeller {	Adi, Soyadi..	}
+class Satışlar { Personel ID,	}
+class Müşteriler {	Adi, Soyadi	}
+class Ürünler {	ÜrünAdi, Adet	}
+
+Database First Yaklaşımının Avantajları ve Dezavantajları
+
+Avantajları;
+- Hazır veritabanlarını hızlı bir şekilde modelleyebilmemizi sağlar.
+- Veritabanında süreçte olan değişiklikleri de hızlıca koda aktarmamızı sağlar.
+- SQL Server, Oracle, PostgreSQL vs. gibi EF Core tarafından desteklenen tüm veritabanlarında kullanılabilir.
+- Veritabanından bağımsız olarak tüm modellemeyi OOP nimetleri karşılığında sağlamaktadır.
+
+Dezavantajları;
+- Kod veritabanına göre şekilleneceği/modelleneceği için yönetim veritabanı tarafından sağlanır. Haliyle veritabanı bilgisi gerektirir.
+
+- Değişiklikler veritabanı kısmında olacağı için geliştirici tarafından sürekli bir kontrol/güncelleme davranışı sergilenmelidir.
+
+Hangi Durumlarda Tercih Edilmelidir?
+
+- Önceden oluşturulmuş, hali hazırda veritabanı var olan uygulamalarda,
+- Uzun süreli devam eden uygulamalarda(özellikle devlet gibi köklü kurumsal projelerin veritabanlarını modellerken),
+- Veritabanı yönetimine, geliştirme süreçlerine ve tasarımına dair herhangi bir kararın geliştiriciler tarafından verilmediği durumlarda
+
+tercih edilmelidir.
+
+------------------
+
+Code First Yaklaşımı
+
+- EF Core çalışma yapılacak olan veritabanı önceden oluşturulmamış ise bu veritabanını kod kısmında modelleyerek ardından bu modele uygun veritabanını sunucuda
+oluşturtan(migration) yaklaşımıdır.
+
+- Bu yaklaşımda veritabanı önce kodla tasarlanır, sonra veritabanı sunucusuna gönderilecek veritabanı oluşturulur.
+
+- Database First yaklaşımının tam tersi davranışı gerektirir.
+
+class DbContext
+{
+public DbSet <Personeller> Personeller {get; set;}
+public DbSet <Satışlar> Satışlar {get; set;}
+public DbSet <Müşteriler> Müşteriler {get; set;}
+public DbSet <Ürünler> Ürünler {get; set;}
+}
+
+class Personeller {	Adi, Soyadi..	}
+class Satışlar { Personel ID,	}
+class Müşteriler {	Adi, Soyadi	}
+class Ürünler {	ÜrünAdi, Adet	}
+
+----migrate--->
+
+Kod kısmında tasarlanan veritabanı modeli, veritabanı sunucusuna gönderildiğinde(ki bu işleme migrate denir)
+nihai olarak tasarlanan modele karşılık veritabanı oluşturulmuş olacaktır.
+
+--> Veritabanı --SQL--> Tablolar (Personeller, Müşteriler, Satışlar, Ürünler)
+
+- İlgili sınıflara karşılık tablolar oluşturulacak, sınıfların içerisindeki property'ler kolon olarak eklenecektir.
+
+Avantajları;
+
+- Kod üzerinden veritabanını modellememizi sağlar.
+- Veritabanına dokunmaksızın kod üzerinden gerekli düzenlemeleri ve güncellemeleri hızlıca yapabilmemizi sağlar.
+- SQL Server, Oracle, PostgreSQL vs. gibi EF Core tarafından desteklenen tüm veritabanlarında kullanılabilir.
+- Veritabanından bağımsız olarak tüm modellemeyi OOP nimetleri karşılığında sağlamaktadır.
+- Koddaki ihtiyaca dönük veritabanı şekilleneceği/modelleneceği ve nihai olarak bu modele göre inşa edileceği için yönetim geliştirici tarafından sağlanmaktadır.
+Haliyle herhangi bir veritabanı bilgisine gerek duymamaktadır.
+- Değişiklikler kod kısmından yapılacağı için geliştirici tarafından sürekli bir kontrol/güncelleme davranışı sergilenmeyecektir.
+- Veritabanı modeli kod üzerinde yapıldığı için istenilen sunucuda anında ilgili modeldeki veritabanı elde edilebilir.
+
+Dezavantajları;
+
+- Üretilecek veritabanının tasarımı ve stratejisi geliştirici sorumluluğundadır.
+
+Hangi Durumlarda Tercih Edilmelidir?
+
+- Veritabanı bilgisine ihtiyaç duyulmayan, veritabanı tasarımının kod üzerinden yapılacaki geliştirici tarafndan sorumluluğun üstlenilebileceği,
+- Veritabanı yönetiminin kod üzerinden sağlanacağı durumlarda tercih edilebilir.
+
+Not: Bu iki yaklaşımın kullanım alanlarının radikal olarak ayrıldığı tek nokta ilgili veritabanının önceden oluşturmuş olup olmamasıdır. Eğer önceden oluşturulmuş ise
+Database First yaklaşımı elzemdir.
+
+Yok eğer önceden oluşturulmamış ise Code First yaklaşımını tercih edebileceğiniz gibi önce sunucuda veritabanını manuel tasarlayıp sonrasında da Database First
+yaklaşımıyla kod kısmında inşa edebilirsiniz.
+
+İşte burada bir opsiyonellik söz konusudur.
+

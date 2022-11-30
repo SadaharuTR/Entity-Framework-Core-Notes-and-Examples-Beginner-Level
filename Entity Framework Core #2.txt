@@ -1,0 +1,398 @@
+EF Core Aktörleri
+
+- Bir ORM aracının veritabanını OOP nimetleriyle temsil edebilmesi için veritabanının, o veritabanının içerisindeki tabloların ve o tabloların içerisindeki
+kolon ve nesnelerin programatik olarak bir şekilde modellenmesi gerekmektedir.
+
+Bu modelleme class'lar üzerinden gerçekleşecektir.
+
+Veritabanı Nesnesi - DbContext
+
+- EF Core'da veritabanını temsil edecek olan sınıf DbContext olarak nitelendirilmektedir.
+
+Database Northwind -> public class NorthwindDbContext : DbContext {		}	
+
+Bir class'ın adında DbContext geçmesi yeterli değildir. Bir class'ın veritabanına karşılık gelen DbContext olabilmesi için Microsoft.EntityFrameworkCore namespace'indeki
+DbContext sınıfından türemesi gerekmektedir.
+
+DbContext Nesnesinin Sorumlu Olduğu Faaliyetler Nelerdir?
+
+- Konfigürasyon: Veritabanı bağlantısı, model yapılanmaları ve veritabanı nesnesi ile tablo nesneleri arasındaki ilişkileri sağlar.
+- Sorgulama: Kod tarafından gerçekleştirilen adımlarını SQL sorgusuna dönüştürür ve veritabanına gönderir.
+- Change Tracking: Sorgulama neticesinde elde edilen veriler üzerindeki değişiklikleri takip eder.
+- Veri Kalıcılığı: Verilerin kayıt edilmesi, güncellenmesi ve islinmesi operasyonlarını gerçekleştirir.
+- Caching
+
+---------------------
+
+Tablo Nesnesi - EntityFrameworkCore
+
+- EF Core'da tabloları temsil edecek sınıflar Entity olarak nitelendirilmektedir.
+
+- Yeryüzündeki herhangi bir olguyu/nesneyi/objeyi modelleyen sınıfa Entity(varlık) denmektedir. EF Core açısından baktığımızda entity, bir veritabanı tablosunu
+modelleyen sınıftır.
+
+Northwind(Database)
+
+(Table)Employees  [EmployeeID,FirstName,LastName]
+(Table)Orders	  [OrderID,CustomerID,OrderDate]
+(Table)Categories [CategoryID,Name,Description]
+(Table)Customers  [CustomerID,Name,ContactTitle]
+(Table)Suppliers  [SupplierID,Name,Contact]
+(Table)Products   [ProductID,Name,SupplierID]
+
+--> Kod ortamı
+
+public class NorthwindDbContext:DbContext
+{
+	//Veritabanında şu entity(DbSet<T>) modeline karşılık bir tablo bulunmaktadır.
+	//Bu tabloyu şu property ile temsil et demiş oluyoruz.
+	public DbSet<Employee> Employees {get; set;}
+	//Employee entity'sine karşılık gelen tabloyu temsil eden property'nin adı Employees
+	public DbSet<Order> Orders {get; set;}
+	public DbSet<Category> Categories {get; set;}
+	public DbSet<Customer> Customers {get; set;}
+	public DbSet<Supplier> Suppliers {get; set;}
+	public DbSet<Product> Products {get; set;}
+	//Ayrıca DbSet property isimlerinin çoğul olduğuna dikkat ediniz.
+	//Entity sınıfları tekil isimken, bu entity sınıfı türüne karşılık gelen tabloyu temsil eden property çoğul isimli olmalıdır.
+}
+
+public class Supplier {		}
+public class Product  {		}
+public class Employee {		}
+public class Order 	  {		}
+public class Category {		}
+public class Customer {		}
+
+- Veritabanında tablo adı çoğul olur, lakin o tabloyu modelleyen entity sınıfının adı tekil olur.
+
+- Tüm entity sınıfları DbContext sınıfı içerisine DbSet olarak eklenmelidir. Böylece veritabanı sınıfı ile entity sınıfları arasında bir ilişki kurulacak ve EF Core temsil
+ettiğini bu ilişki üzerinden anlayacaktır.
+
+-------------------------
+
+Tablo Kolonları
+
+(Table)Customers ->
+
+public class Customer
+{
+	public int CustomerID {get; set;}
+	public int Name {get; set;}
+	public int ContactTitle {get; set;}
+}
+
+Veriler;
+
+- Veritabanındaki veriler ise entity'lerin instance'larına karşılık gelmektedir.
+
+Customers
+CustomerID		Name		ContactTitle
+1				Hilmi		Müdür
+2				Cafer		Çaycı
+3				Faruk		Pazarlayıcı
+
+new Customer();
+CustomerID: 1
+Name: Hilmi
+ContactTitle: Müdür
+
+new Customer();
+CustomerID: 2
+Name: Cafer
+ContactTitle: Çaycı
+
+new Customer();
+CustomerID: 3
+Name: Faruk
+ContactTitle: Pazarlayıcı
+
+---------------------
+
+Tersine Mühendislik (Reverse Engineering)
+
+- Bir sunucudaki veritabanının iskelesini kod kısmında oluşturma sürecidir.
+- Bu süreci Package Manager Console (PMC) ya da Dotnet CLI aracılığıyla iki farklı şekilde yürütebiliriz.
+
+PMC veya Dotnet CLI ile Tersine Mühendislik
+
+Scaffold-DbContext 'Connection String' Microsoft.EntityFrameworkCore.[Provider]
+
+- Connection String'i bulmak için;
+
+https://www.connectionstrings.com/sql-server/ (MsSQL için)
+
+Standart Security: Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;
+
+- PMC ile veritabanını modelleyebilmek için aşağıdaki kütüphanelerin projeye yüklenmesi gerekmektedir;
+
+Microsoft.EntityFrameworkCore.Tools
+Database Provider (Örneğin; Microsoft.EntityFrameworkCore.SQLServer)
+
+- Connection String'de belirttiğimiz ile aynı olmalıdır.
+
+Database Provider bulmak için;
+
+https://learn.microsoft.com/en-us/ef/core/providers/?tabs=dotnet-core-cli
+
+Projemize sağ tıklayıp Manage NuGet Packages diyerek aşağıdaki 2 dosyayı indirelim;
+- Microsoft.EntityFrameworkCore.Tools ya da .Design (Dotnet CLI)
+- Microsoft.EntityFrameworkCore.SqlServer
+
+Sonra PMC'a gelip;
+
+Scaffold-DbContext 'Server=PC\SQLEXPRESS;Database=NORTHWND;User ID=sa;Password=***;TrustServerCertificate=True' Microsoft.EntityFrameworkCore.SqlServer
+
+Ya da Dotnet CLI ile; (powershell üzerinden de yapılabilir)
+
+dotnet ef dbcontext scaffold 'Server=PC\SQLEXPRESS;Database=NORTHWND;User ID=sa;Password=***;TrustServerCertificate=True' Microsoft.EntityFrameworkCore.SqlServer
+
+Tabloları Belirtme
+
+- Varsayılan olarak veritabanındaki tüm tablolar modellenir. Sadece istenilen tabloların modellenebilmesi için aşağıdaki gibi talimatların
+verilmesi yeterlidir.
+
+Scaffold-DbContext 'Connection String' Microsoft.EntityFrameworkCore.SqlServer -Tables Table1,Table2
+
+Ya da Dotnet CLI ile;
+
+dotnet ef dbcontext scaffold 'Connection String' Microsoft.EntityFrameworkCore.SqlServer --table Table1 --table Table2
+
+--------------------
+
+DbContext Adını Belirtme
+
+- Scaffold ile modellenen veritabanı için oluşturulacak context nesnesi adını veritabanından alacaktır. Eğer ki context nesnesinin adını değiştirmek
+istiyorsanız aşağıdaki gibi çalışabilirsiniz.
+
+Scaffold-DbContext 'Connection String' Microsoft.EntityFrameworkCore.SqlServer -Context ContextName
+
+dotnet ef dbcontext scaffold 'Connection String' Microsoft.EntityFrameworkCore.SqlServer --context ContextName
+
+---------------
+
+Path ve Namespace Belirtme
+
+- Entity'ler ve DbContext sınıfı, default olarak direkt projenin kök dizinine modellenir ve projenin varsayılan namespace'ini kullanırlar.
+Eğer ki bunlara müdahele etmek istiyorsanız aşağıdaki gibi talimat verebilirsiniz.
+
+Path:
+
+Scaffold-DbContext 'Connection String' Microsoft.EntityFrameworkCore.SqlServer -ContextDir Data -OutputDir Models
+
+dotnet ef dbcontext scaffold 'Connection String' Microsoft.EntityFrameworkCore.SqlServer --context-dir Data --output-dir Models
+
+Namespace:
+
+Scaffold-DbContext 'Connection String' Microsoft.EntityFrameworkCore.SqlServer
+-Namespace YourNamespace -ContextNamespace YourNamespace
+
+dotnet ef dbcontext scaffold 'Connection String' Microsoft.EntityFrameworkCore.SqlServer --context-dir Data --output-dir Models
+--namespace YourNamespace
+--context-namespace YourContextNamespace
+
+-----------
+
+Model Güncelleme
+
+- Veritabanında olan değişiklikleri kod kısmına yansıtabilmek için Scaffold talimatını tekrar vermeniz gerekmektedir lakin verilen talimat neticesinde
+ilgili sınıfların zaten var olduğuna dair hata mesajı verilme olasılığı yüksektir.
+
+Böyle bir durumda veritabanı modeline değişiklikleri manuel olarak yansıtabileceğimiz gibi(not recommended), dosyalar var olsa dahi yeniden en güncel haliyle
+modellenmesini sağlayabiliriz. Bunun için aşağıdaki gibi Force talimatının verilmesi yeterli olacaktır.
+
+Scaffold-DbContext 'Connection String' Microsoft.EntityFrameworkCore.SqlServer -ContextDir Data -Force
+
+dotnet ef dbcontext scaffold 'Connection String' Microsoft.EntityFrameworkCore.SqlServer --context-dir Data --force
+
+----------------
+
+Modellerin Özelleştirilmesi
+
+- Database First yaklaşımında veritabanı nesneleri otomatik olarak modellenmekte ve generate edilmektedir. Bazen bu otomatize olan süreçte manuelde olsa
+entity'lerde yahut context nesnesinde özelleştirmeler yapmak isteyebiliriz.
+
+- Veritabanında yapılan değişiklikler neticesinde Force komutu eşliğinde tüm değişiklikler kod kısmına sıfırdan yansıtılabilir ve bu da yapılan değişikliklerin
+ezilme riskiin söz konusu olduğu anlamına gelir.
+
+- Bu tarz özelleştirme durumlarında bizzat model sınıflarını kullanmaktansa bunların partial class'ları üzerinde çalışmak en doğrusudur.
+
+-----------------
+
+Code First Yaklaşımı
+
+Migration & Migrate Kavramları 
+
+Project
+
+public class DbContext
+{
+public ... {get; set; }
+public ... {get; set; }
+public ... {get; set; }
+}
+public class EntityA
+{
+public ... {get; set; }
+public ... {get; set; }
+public ... {get; set; }
+}
+public class EntityB
+{
+public ... {get; set; }
+public ... {get; set; }
+public ... {get; set; }
+}
+
+----Migration--> Kod kısmında modellediğimiz veritabanını, veritabanı sunucusunun anlayacağı hale getiren bir C# class'ıdır.
+
+public partial class migration
+{
+	public override void Up(MigrationBuilder migrationBuilder)
+	{
+		migrationBuilder.CreateTable..
+	}
+	public override void Down(MigrationBuilder migrationBuilder)
+	{
+		migrationBuilder.DropTable..
+	}
+}
+
+---Migrate---> Veritabanı sunucusunda o modele karşılık bir veritabanının oluşturulma süreci.
+
+Database
+
+(Table)
++SupplierID
++Name
++Contact..
+(Table)
++SupplierID
++Name
++Contact..
+(Table)
++SupplierID
++Name
++Contact..
+
+Migration Oluşturmak İçin Temel Gereksinimler
+
+- Migration oluşturmak için temelde EF Core aktörleri olan DbContext ve Entity class'larını oluşturmak gerekir. Bunları oluşturduktan sonra
+migration Package Manager Console ve Dotnet CLI olmak üzere iki türlü talimatla verilebilir.
+
+- Her iki yöntemi de kullanabilmek için Microsoft.EntityFrameworkCore.Tools kütüphanesini uygulamaya yüklemeniz gerekmektedir.
+
+Örnek:
+
+using Microsoft.EntityFrameworkCore;
+
+Console.WriteLine("Hello");
+
+public class ECommerceDbContext : DbContext //ECommerceDbContext diye bir veritabanı modellemiş olduk.
+{
+    public DbSet<Product> Products { get; set; } //ve bu veritabanı içerisinde Products isminde bir tablo olacağını,
+    //bu tablonun modelinin de Product türünde olacağını belirttik.
+    public DbSet<Customer> Customers { get; set; } //Artık EF Core açısından bir Entity modelidir.
+
+    //bu veritabanı modellemesi hangi veritabanı sunucusuna uygun bir şekilde modellendi?
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) //context nesnemizle ilgili temel ayarlamalarımızı yapmamızı sağlayan bir fonksiyondur.
+    {
+        //context'in hangi veritabanı sunucusuna migrate edileceği burada belirtilir.
+
+        optionsBuilder.UseSqlServer("Server=PC\\SQLEXPRESS;Database=ECommerceDb;User Id=sa;Password=1"); 
+        //NuGet üzerinden kütüphaneyi yüklemeyi unutmayalım.
+    }
+}
+
+//Entity
+public class Product
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public int Quantity { get; set; }
+    public float Price { get; set; }
+}
+//Entity
+public class Customer
+{
+    public int Id { get; set; }
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
+}
+
+Migration Oluşturma
+
+PMC
+add-migration [Migration Name]
+
+Dotnet CLI
+dotnet ef migrations add [Migration Name]
+
+Mini Not:
+oluşturulan mig_1.cs'e bakacak olursak;
+
+Up : O ana kadar yapılmış çalışmalarda veritabanı sunucusuna gönderilecek olanları belirler,
+Down: Migration geri alınırsa yapılmış olanları geri almaya yarar.
+
+Migration Path'i Belirleme
+
+PMC
+add-migration [Migration Name] -OutputDir [Path]
+
+Dotnet CLI
+dotnet ef migrations add [Migration Name] --output-dir [Path]
+
+Migration Silme
+
+PMC
+remove-migration
+
+Dotnet CLI
+dotnet ef migrations remove
+
+Migration'ları Listeleme
+
+PMC
+get-migration
+
+Dotnet CLI
+dotnet ef migrations list
+
+-------------------
+
+Migration'ları Migrate Etme (Up Fonsiyonu)
+
+PMC
+update-database
+
+Dotnet CLI
+dotnet ef database update
+
+Migration'ları Geri Alma (Down Fonksiyonu)
+
+PMC
+update-database [Migration Name]
+
+Dotnet CLI
+dotnet ef database update [Migration Name]
+
+- Hangi migration'a geri dönülmek istiyorsa o yazılır.
+
+------------------
+
+Kod Üzerinden Migrate Operasyonu
+
+- Migration'ları tool aracılığıyla migrate edebildiğimiz gibi kod üzerinden de uygulamanın ayakta olduğu süreçte(runtime'da) veritabanını
+migrate edebiliyoruz.
+
+AppDbContext context = new();
+await context.Database.MigrateAsync();
+
+Not:
+
+- Veritabanı üzerinde yapılan tüm değişiklikleri migration eşliğinde gönderiniz. Böylece her bir değişiklikleri migration'lar ile kayıt altına almış
+olursunuz(bu da size veritabanı gelişim sürecini verir.) ve ihtiyaca binaen istediğiniz noktaya geri dönüş sağlayabilirsiniz.
+
+- Migration'lara mümkün mertebe dokunmamak lazım. Lakin ileride ihtiyaç doğrultusunda ham SQL cümlecikleri ekleyeceğimiz ve hatta Stored Procedure gibi
+yapıları oluşturacağımız noktalar olacaktır.

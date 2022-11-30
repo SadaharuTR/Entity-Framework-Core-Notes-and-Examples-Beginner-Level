@@ -1,0 +1,431 @@
+Sorgu İşlemleri
+
+En Temel Basit Bir Sorgulama Nasıl yapılır?
+
+using Microsoft.EntityFrameworkCore;
+
+ETicaretContext context = new();
+
+#region En Temel Basit Bir Sorgulama Nasıl yapılır?
+
+#region Method Syntax
+//Sorgulama sürecinde metotları kullanırsak buna Method Syntax denir.
+var urunler = await context.Urunler.ToListAsync();
+#endregion
+
+#region Query Syntax
+//ürünler tablosunun içerisindeki her bir ürünü bana getir.
+var urunler2 = await (from urun in context.Urunler //Urunler tablosunda yapılan bu sorgulamadaki her bir veriyi urun değişkeni ile (adı farklı olabilir) temsil edip select ile çek.
+               select urun).ToListAsync();
+#endregion
+
+#endregion
+public class ETicaretContext : DbContext
+{
+    public DbSet<Urun> Urunler { get; set; }
+    public DbSet<Parca> Parcalar { get; set; }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder.UseSqlServer(@"Server=PC\SQLEXPRESS;Database=ETicaretDB;User ID=sa;Password=1;TrustServerCertificate=True;Trusted_Connection=true");
+    }
+}
+
+public class Urun
+{
+    public int Id { get; set; }
+    public string UrunAdi { get; set; }
+    public float Fiyat { get; set; }
+    public ICollection<Parca> Parcalar { get; set; }
+}
+public class Parca
+{
+    public int Id { get; set; }
+    public string ParcaAdi { get; set; }
+}
+
+-------------------------
+
+Not:
+
+IQueryable ve IEnumerable Nedir? Basit anlatım.
+- IQueryable sorguya karşılık gelir. EF Core üzerinden yapılmış olan sorgunun execute edilmemiş halini ifade eder.
+- IEnumerable sorgunun çalıştırılıp/execute edilip verilerin in memory'e yüklenmiş (artık veriler yazılımda entity instance'ları olarak tutuluyor) halini ifade eder.
+
+
+IQueryable'dayız.
+var urunler = from urun in context.Urunler
+              select urun;
+			  
+IQueryable'dan IEnumerable'a getirmek için ToListAsync ekleriz.
+var urunler = (from urun in context.Urunler
+              select urun).ToListAsync(); 
+
+------------------
+
+Sorguyu Execute Etmek İçin Ne Yapmamız Gerekmektedir?
+
+//ToListAsync kullanabiliriz.
+//ya da
+
+var urunler = from urun in context.Urunler
+              select urun;
+//foreach 
+foreach (Urun urun in urunler)
+{
+    Console.WriteLine(urun.UrunAdi);
+}
+
+-----------------
+
+Deferred Execution (Ertelenmiş Çalışma)
+- IQeryable çalışmalarında ilgili kod, yazıldığı anda tetiklenmez/çalıştırılmaz. Yani ilgili kod yazıldığı noktada sorguyu generate etmez! 
+- Çalıştırıldığı/execute edildiği noktada tetiklenir. İşte buna ertelenmiş çalışma denir.
+
+Örnek:
+
+int urunId = 5;
+
+var urunler = from urun in context.Urunler
+              where urun.Id > urunId
+              select urun;
+
+urunId = 200; //foreach'de execute edilirken 200 değerine göre çalışmayı gerçekleştirecektir.
+
+//foreach 
+
+foreach (Urun urun in urunler)
+{
+    Console.WriteLine(urun.UrunAdi);
+}
+
+Örnek:
+
+int urunId = 5;
+string urunAdi = "2";
+
+var urunler = from urun in context.Urunler
+              where urun.Id > urunId && urun.UrunAdi.Contains(urunAdi) //başka bir yerde urunAdi belirtmezsek, 2 barındıranları getirir.
+              select urun;
+
+urunId = 200; //foreach'de execute edilirken 200 değerine göre çalışmayı gerçekleştirecektir.
+urunAdi = "4"; //artık 4 olanları getirecektir.
+
+//foreach 
+foreach (Urun urun in urunler)
+{
+    Console.WriteLine(urun.UrunAdi);
+}
+
+Örnek:
+
+int urunId = 5;
+string urunAdi = "2";
+
+var urunler = from urun in context.Urunler
+              where urun.Id > urunId && urun.UrunAdi.Contains(urunAdi) //başka bir yerde urunAdi belirtmezsek, 2 barındıranları getirir.
+              select urun;
+
+urunId = 200; //ToListAsync'te de execute edilirken 200 değerine göre çalışmayı gerçekleştirecektir.
+urunAdi = "4"; //artık 4 olanları getirecektir.
+
+await urunler.ToListAsync();
+
+--------------------
+
+Not:
+ETicaretContext context = new();
+Artık using'in altında global olarak oluşturulmaktadır.
+
+--------------
+
+Çoğul Veri Getiren Sorgulama Fonksiyonları
+
+ToListAsync Fonksiyonu
+
+#region ToListAsync
+
+//Üretilen sorguyu execute ettirmemizi sağlayan fonksiyondur.
+
+Method Syntax 
+var urunler = context.Urunler.ToListAsync();
+
+//Query Syntax
+var urunler = (from urun in context.Urunler
+               select urun).ToListAsync();
+ya da
+var urunler = (from urun in context.Urunler
+              select urun);
+var datas = await urunler.ToListAsync();
+
+#endregion
+
+------------------
+
+Where Fonksiyonu
+
+#region Where
+
+//Oluşturulan Sorguya Where şartı eklememizi sağlayan bir fonksiyondur.
+
+//Method Syntax
+var urunler = await context.Urunler.Where(u => u.Id > 500).ToListAsync();
+var urunler2 = await context.Urunler.Where(u => u.UrunAdi.StartsWith("a")).ToListAsync();
+var urunler3 = await context.Urunler.Where(u => u.UrunAdi.EndsWith("b")).ToListAsync();
+var urunler4 = await context.Urunler.Where(u => u.UrunAdi.Contains("c")).ToListAsync();
+
+//Query Syntax
+var urunler5 = from urun in context.Urunler
+               where urun.Id > 500 && urun.UrunAdi.EndsWith("7")
+               select urun;
+
+var data = await urunler5.ToListAsync();
+
+#endregion
+
+-------------------
+
+OrderBy Fonksiyonu
+
+#region OrderBy
+//Sorgu üzerinde sıralama yapmamızı sağlayan bir fonksiyondur.
+//Ascending olarak sıralamayı yapar.
+
+//Method Syntax
+var urunler = context.Urunler.Where(u => u.Id > 500 || u.UrunAdi.StartsWith("2")).OrderBy(u => u.UrunAdi);
+
+//Query Syntax
+var urunler2 = from urun in context.Urunler
+               where urun.Id > 500 || urun.UrunAdi.EndsWith("2")
+               orderby urun.UrunAdi
+               select urun;
+
+await urunler.ToListAsync();
+await urunler2.ToListAsync();
+
+#endregion
+
+------------------
+
+ThenBy Fonksiyonu
+
+#region ThenBy
+//OrderBy üzerinde yapılan sıralama işlemini farklı kolonlara da uygulamamızı sağlayan bir fonksiyondur. (Ascending)
+
+//Method Syntax
+var urunler = context.Urunler.Where(u => u.Id > 500 || u.UrunAdi.StartsWith("2")).OrderBy(u => u.UrunAdi).ThenBy(u => u.Fiyat).ThenBy(u => u.Id);
+await urunler.ToListAsync();
+
+#endregion
+
+------------------
+
+OrderByDescending Fonksiyonu
+
+#region OrderByDescending
+//Descending olarak sıralama yapmamızı sağlayan bir fonksiyondur.
+
+//Method Syntax
+var urunler = await context.Urunler.OrderByDescending(u => u.Fiyat).ToListAsync();
+
+//Query Syntax
+var urunler2 = await (from urun in context.Urunler
+                     orderby urun.UrunAdi descending
+                     select urun).ToListAsync();
+
+#endregion
+
+---------------------
+
+ThenByDescending Fonksiyonu
+
+#region ThenByDescending
+
+//OrderByDescending üzerinde yapılan sıralama işlemini farklı kolonlara da uygulamamızı sağlayan bir fonksiyondur. (Ascending)
+var urunler = await context.Urunler.OrderByDescending(u => u.Id).ThenByDescending(u => u.Fiyat).ThenBy(u => u.UrunAdi).ToListAsync();
+
+#endregion
+
+-------------------------
+
+Tekil Veri Getiren Sorgulama Fonksiyonları
+
+- Single ya da SingleOrDefault Fonksiyonları: Oluşturduğumuz sorguda sadece tek bir sonucun gelmesini istiyorsak, birden fazla sonuç geliyorsa ya da hiç gelmiyorsa
+hata(exception) fırlatılmasını istiyorsak bu fonksiyonları kullanabiliriz. Ufak bir fark vardır.
+
+Single ya da SingleAsync: Sorgu neticesinde birden fazla veri geliyorsa ya da hiç gelmiyorsa her iki durumda da exception fırlatır.
+SingleOrDefault ya da SingleOrDefaultAsync: Sorgu neticesinde birden fazla veri geliyorsa exception fırlatır, hiç gelmiyorsa null döner.
+
+SingleAsync Kullanımı,
+
+Tek Bir Kayıt Geldiğinde,
+var urun = await context.Urunler.SingleAsync(u => u.Id == 55);//sorun yok. Tek bir veri geliyor. Satırı döndürür.
+
+Hiç Kayıt Gelmediğinde,
+var urun = await context.Urunler.SingleAsync(u => u.Id == 5555); //5555 Id'li birisi yoksa Exception hatası fırlatır.
+
+Birden Fazla Kayıt Geldiğinde,
+var urun = await context.Urunler.SingleAsync(u => u.Id > 55); //Id'si 55'ten büyük birden fazla kayıt olsun.
+//Yine Exception hatası alınacaktır.
+
+SingleOrDefaultAsync Kullanımı,
+
+Tek Bir Kayıt Geldiğinde,
+var urun = await context.Urunler.SingleOrDefaultAsync(u => u.Id == 55); //sorun yok. Tek bir veri geliyor.Satırı döndürür.
+
+Hiç Kayıt Gelmediğinde,
+var urun = await context.Urunler.SingleOrDefaultAsync(u => u.Id == 5555); //5555 Id'li birisi yoksa Null döner.
+
+Birden Fazla Kayıt Geldiğinde,
+var urun = await context.Urunler.SingleOrDefaultAsync(u => u.Id > 55); //Id'si 55'ten büyük birden fazla kayıt olsun.
+//Exception hatası alınacaktır.
+
+---------------------
+
+FirstAsync ve FirstOrDefaultAsync
+
+- Yapılan sorguda tek bir verinin gelmesi amaçlanıyorsa bu fonksiyonlar kullanılabilir.
+- Eğer ki yapmış olduğumuz sorguda gelecek olan verilerin sadece tek bir veri olduğundan emin olmak istiyorsak, birden fazla veri geldiği durumda yazılımı
+uyarmak istiyorsak bu fonksiyonlar kullanılabilir.
+
+FirstAsync: Sorgu neticesinde elde edilen verilerden ilkini getirir. Eğer ki hiç veri gelmiyorsa hata fırlatır.
+
+Tek Kayıt Geldiğinde,
+var urun = await context.Urunler.FirstAsync(u => u.Id == 55); //Hata yok. Satırı döndürür.
+
+Hiç Kayıt Gelmediğinde,
+var urun = await context.Urunler.FirstAsync(u => u.Id == 5555); //Exception.
+
+Birden Fazla Kayıt Geldiğinde,
+var urun = await context.Urunler.FirstAsync(u => u.Id > 55); //55'ten büyük Id'lere sahip verileri SQL'de elde edip, 55'ten sonra 56 Id'sine sahip olanı getirecektir.
+
+FirstOrDefaultAsync: Sorgu neticesinde elde edilen verilerden ilkini getirir. Eğer ki hiç veri gelmiyorsa null değerini döndürür.
+
+Tek Kayıt Geldiğinde,
+var urun = await context.Urunler.FirstOrDefaultAsync(u => u.Id == 55);//Hata yok. Satırı döndürür.
+
+Hiç Kayıt Gelmediğinde,
+var urun = await context.Urunler.FirstOrDefaultAsync(u => u.Id == 5555); //Null döner.
+
+Birden Fazla Kayıt Geldiğinde,
+var urun = await context.Urunler.FirstOrDefaultAsync(u => u.Id > 55);//FirstAsync ile aynı çalışmayı sergileyecektir. Birden fazla verinin ilkini döndürecektir.
+
+Not: Single, First, SingleOrDefault, FirstOrDefault fonksiyonları, sorguyu her zaman veritabanına gönderir. Tüm kolonları where ile sorgulayabilir.
+
+------------------------------
+
+FindAsync
+
+- Sorgulama sürecinde önce context içerisini(bellek, in memory) kontrol eder, kaydı bulamadığı taktirde sorguyu veritabanına gönderir. Yalnızca primary key alanlarını 
+sorgulayabilir. Kayıt bulamazsa null döndürür.
+
+Urun urun = await context.Urunler.FirstOrDefaultAsync(u => u.Id == 55); //Id primary key olduğundan aşağıdaki gibi Find'ı kullanabiliriz.
+//Find fonksiyonu, primary key kolonuna özel hızlı bir şekilde sorgulama yapmamızı sağlayan bir fonksiyondur.
+Urun urun = await context.Urunler.FindAsync(55);
+//55 Id'sine sahip ürünü direkt olarak getirecektir.
+
+Find ile Composite Primary Key Durumu
+
+UrunParca u = await context.UrunParca.FindAsync(2,5);
+
+Not:Veri tabanında tablo oluştururken, tablodaki kayıtların benzersiz olması için her tabloya genellikle bir tane birincil anahtar yerleştiririz.
+Ancak bazı durumlarda 1 tane birincil anahtar tek başına istediğimiz şekilde tablodaki sorunları çözmek için yeterli olmayabilir. 
+Birden fazla alanın birlikte birincil olması gerektiği durumlarda birincil anahtar olarak ayarlaması gerekir. Bu duruma composite key adı verilir.
+
+-------------------------
+
+LastAsync ve LastOrDefaultAsync
+
+- Bu fonksiyonları OrderBy ile birlikte kullanmamız gereklidir.
+
+var urun = await context.Urunler.OrderBy(u => u.UrunAdi).LastAsync(u => u.Id > 55);//UrunAdi'na göre sıralamayı yapıp sonuncusunun Id'sini getirecektir.
+
+var urun = await context.Urunler.OrderBy(u => u.Fiyat).LastAsync(u => u.Id > 55); //Fiyat'a göre sıralamayı yapıp sonuncusunun Id'sini getirecektir.
+
+LastAsync'de hiç veri gelmiyorsa hata fırlatır.
+LastOrDefaultAsync'da hiç veri gelmiyorsa null döndürür.
+
+var urun = await context.Urunler.OrderBy(u => u.Fiyat).LastOrDefaultAsync(u => u.Id > 55); //LastAsync ile aynı sonuç alınacaktır.
+
+------------------
+
+Diğer Sorgulama Fonksiyonları
+
+CountAsync
+
+- Oluşturulan sırgunun execute edilmesi neticesinde kaç adet satırın elde edileceğini sayısal olarak (int) bize bildiren fonksiyondur.
+
+var urunler = (await context.Urunler.ToListAsync()).CountAsync(); //maliyetlidir. Çok sayıda ürünü belleğe çekip orada sayıyoruz.
+
+var urunler = await context.Urunler.CountAsync(); //daha az maliyetli. 
+//Bu şekilde IQueryable'da iken sorgunun devamını Count ile getirmek direkt olarak veritabanından int değer döneceğinden maliyet olarak daha avantajlı olacaktır.
+
+------
+
+LongCountAsync: Oluşturulan sırgunun execute edilmesi neticesinde kaç adet satırın elde edileceğini sayısal olarak (long) bize bildiren fonksiyondur.
+
+var urunler = await context.Urunler.LongCountAsync();
+
+var urunler = await context.Urunler.LongCountAsync(u => u.Fiyat > 5000); //Count fonksiyonlarında şartlı sorgu da yapılabilir.
+
+------
+
+AnyAsync: Sorgu neticesinde verinin gelip gelmediğini bool türünde veren fonksiyondur.
+
+var urunler = await context.Urunler.AnyAsync(); //veri geliyorsa true. Gelmiyorsa false.
+
+var urunler = await context.Urunler.Where(u => u.UrunAdi.Contains("1")).AnyAsync(); //verinin içinde 1 geçiyor mu? True ya da False.
+
+------
+
+MaxAsync: Oluşturulan sorguda verilen kolonda sayısal olarak en yüksek olan değer hangisiyse onu getirir.
+
+var fiyat = await context.Urunler.MaxAsync(u => u.Fiyat); //En yüksek Fiyat'ı getirir.
+
+MinAsync: Oluşturulan sorguda verilen kolonda sayısal olarak en düşük olan değer hangisiyse onu getirir.
+
+var fiyat = await context.Urunler.MinAsync(u => u.Fiyat); //En düşük Fiyat'ı getirir.
+
+------
+
+Distinct: Sorguda tekrar eden kayıtlar varsa bunları tekilleştiren bir işleve sahip fonksiyondur.
+
+var urunler = await context.Urunler.Distinct().ToListAsync(); //IQueryable döndüğünden ToListAsync ile execute etmemiz gerekir ki veritabanına gönderebilelim.
+
+------
+
+AllAsync: Bir sorgu neticesinde gelen verilerin, veirlen şarta uyup uymadığını kontrol etmektedir. Eğer ki tüm veriler şarta uyuyorsa true, uymuyorsa false
+döndürecektir.
+
+var m = await context.Urunler.AllAsync(u => u.Fiyat > 5000); //bütün veriler 5000'den büyük ise true, değilse false.
+
+var m = await context.Urunler.AllAsync(u => u.Fiyat < 15000);
+
+var m = await context.Urunler.AllAsync(u => u.UrunAdi.Contains("a));
+
+------
+
+SumAsync: Vermiş olduğumuz sayısal property'nin toplamını alır.
+
+var fiyatToplam = await context.Urunler.SumAsync(u => u.Fiyat);
+
+AverageAsync: Vermiş olduğumuz sayısal property'nin aritmetik ortalamasını verir.
+
+var aritmetikOrtalama = await context.Urunler.AverageAsync(u => u.Fİyat);
+
+------
+
+Contains: İçinde geçen şeklinde, Like'%...%' sorgusu oluşturmamızı sağlar. Where şartının içerisinde belirtilmesi lazım.
+EF Core, UrunAdi üzerinde Contains'i görürse bunun bir Like sorgusu olduğunu anlayacaktır. IQueryable'da olduğumuzdan ToListAsync ile execute etmeliyiz.
+
+var urunler = await context.Urunler.Where(u => u.UrunAdi.Contains("7")).ToListAsync(); //7 içerenleri getir.
+
+StarsWith: Like '...%' sorgusu oluşturmamızı sağlar.
+
+var urunler = await context.Urunler.Where(u => u.UrunAdi.StarsWith("7")).ToListAsync(); //7 ile başlayanları getir.
+
+EndsWith: Like '%...' sorgusu oluşturmamızı sağlar.
+
+var urunler = await context.Urunler.Where(u => u.UrunAdi.EndsWith("7")).ToListAsync(); //7 ile bitenleri getir.
+
+- StarsWith ve EndsWith'te de aynı kurallar geçerli. Where ile kullan. ToListAsync ekle.

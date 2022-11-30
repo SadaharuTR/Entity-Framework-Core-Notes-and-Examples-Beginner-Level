@@ -1,0 +1,5 @@
+C:\Users\acdem\OneDrive\Masaüstü\Entity Framework Core Practices\EntityFrameworkCorePractices\EntityFrameworkCorePractices\obj\Debug\net6.0\EntityFrameworkCorePractices.csproj.AssemblyReference.cache
+C:\Users\acdem\OneDrive\Masaüstü\Entity Framework Core Practices\EntityFrameworkCorePractices\EntityFrameworkCorePractices\obj\Debug\net6.0\EntityFrameworkCorePractices.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\acdem\OneDrive\Masaüstü\Entity Framework Core Practices\EntityFrameworkCorePractices\EntityFrameworkCorePractices\obj\Debug\net6.0\EntityFrameworkCorePractices.AssemblyInfoInputs.cache
+C:\Users\acdem\OneDrive\Masaüstü\Entity Framework Core Practices\EntityFrameworkCorePractices\EntityFrameworkCorePractices\obj\Debug\net6.0\EntityFrameworkCorePractices.AssemblyInfo.cs
+C:\Users\acdem\OneDrive\Masaüstü\Entity Framework Core Practices\EntityFrameworkCorePractices\EntityFrameworkCorePractices\obj\Debug\net6.0\EntityFrameworkCorePractices.csproj.CoreCompileInputs.cache
