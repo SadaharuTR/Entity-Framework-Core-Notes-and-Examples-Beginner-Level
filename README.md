@@ -5,6 +5,7 @@ Sources I used:
 
 Main Source:
 Gençay Yıldız Youtube: A'dan Z'ye Entity Framework Core Eğitimi
+
 https://www.gencayyildiz.com/blog/category/entity-framework-core/
 
 Enhanced sources:
